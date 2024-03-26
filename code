@@ -1,0 +1,191 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+// Define structure for doubly linked list node
+struct Node {
+    int key;
+    int value;
+    struct Node* next;
+    struct Node* prev;
+};
+
+// Define structure for hash table
+struct HashTable {
+    int size;
+    int capacity;
+    struct Node** array;
+};
+
+// Function to create a new node
+struct Node* createNode(int key, int value) {
+    struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));
+    newNode->key = key;
+    newNode->value = value;
+    newNode->next = NULL;
+    newNode->prev = NULL;
+    return newNode;
+}
+
+// Function to create a hash table
+struct HashTable* createHashTable(int capacity) {
+    struct HashTable* hashTable = (struct HashTable*)malloc(sizeof(struct HashTable));
+    hashTable->size = 0;
+    hashTable->capacity = capacity;
+    hashTable->array = (struct Node**)malloc(capacity * sizeof(struct Node*));
+    for (int i = 0; i < capacity; ++i)
+        hashTable->array[i] = NULL;
+    return hashTable;
+}
+
+// Hash function using multiplication method
+int hashFunction(int key, int capacity) {
+    double A = 0.6180339887; // Approximate value of the golden ratio
+    double frac = key * A - (int)(key * A);
+    return (int)(capacity * frac);
+}
+
+// Function to insert key-value pair into hash table
+void insert(struct HashTable* hashTable, int key, int value) {
+    int index = hashFunction(key, hashTable->capacity);
+    struct Node* newNode = createNode(key, value);
+    if (hashTable->array[index] == NULL) {
+        hashTable->array[index] = newNode;
+    } else {
+        struct Node* current = hashTable->array[index];
+        while (current->next != NULL)
+            current = current->next;
+        current->next = newNode;
+        newNode->prev = current;
+    }
+    hashTable->size++;
+}
+
+// Function to search for a key in the hash table
+int search(struct HashTable* hashTable, int key) {
+    int index = hashFunction(key, hashTable->capacity);
+    struct Node* current = hashTable->array[index];
+    while (current != NULL) {
+        if (current->key == key)
+            return current->value;
+        current = current->next;
+    }
+    return -1; // Key not found
+}
+
+// Function to remove a key from the hash table
+void removeKey(struct HashTable* hashTable, int key) {
+    int index = hashFunction(key, hashTable->capacity);
+    struct Node* current = hashTable->array[index];
+    while (current != NULL) {
+        if (current->key == key) {
+            if (current->prev == NULL) {
+                hashTable->array[index] = current->next;
+            } else {
+                current->prev->next = current->next;
+            }
+            if (current->next != NULL)
+                current->next->prev = current->prev;
+            free(current);
+            hashTable->size--;
+            return;
+        }
+        current = current->next;
+    }
+}
+
+// Function to resize the hash table
+void resizeHashTable(struct HashTable* hashTable, int newCapacity) {
+    struct Node** newArray = (struct Node**)malloc(newCapacity * sizeof(struct Node*));
+    for (int i = 0; i < newCapacity; ++i)
+        newArray[i] = NULL;
+
+    for (int i = 0; i < hashTable->capacity; ++i) {
+        struct Node* current = hashTable->array[i];
+        while (current != NULL) {
+            struct Node* next = current->next;
+            int newIndex = hashFunction(current->key, newCapacity);
+            if (newArray[newIndex] == NULL) {
+                newArray[newIndex] = current;
+                current->prev = NULL;
+                current->next = NULL;
+            } else {
+                current->next = newArray[newIndex];
+                current->next->prev = current;
+                newArray[newIndex] = current;
+            }
+            current = next;
+        }
+    }
+
+    free(hashTable->array);
+    hashTable->array = newArray;
+    hashTable->capacity = newCapacity;
+}
+
+// Function to check if hash table needs resizing
+void checkResize(struct HashTable* hashTable) {
+    if (hashTable->size >= hashTable->capacity * 3 / 4) {
+        resizeHashTable(hashTable, hashTable->capacity * 2);
+    } else if (hashTable->size <= hashTable->capacity / 4) {
+        resizeHashTable(hashTable, hashTable->capacity / 2);
+    }
+}
+
+// Function to print the hash table
+void printHashTable(struct HashTable* hashTable) {
+    printf("Hash Table:\n");
+    for (int i = 0; i < hashTable->capacity; ++i) {
+        printf("[%d]: ", i);
+        struct Node* current = hashTable->array[i];
+        while (current != NULL) {
+            printf("(%d, %d) ", current->key, current->value);
+            current = current->next;
+        }
+        printf("\n");
+    }
+}
+
+// Function to destroy the hash table
+void destroyHashTable(struct HashTable* hashTable) {
+    for (int i = 0; i < hashTable->capacity; ++i) {
+        struct Node* current = hashTable->array[i];
+        while (current != NULL) {
+            struct Node* next = current->next;
+            free(current);
+            current = next;
+        }
+    }
+    free(hashTable->array);
+    free(hashTable);
+}
+
+int main() {
+    struct HashTable* hashTable = createHashTable(8);
+
+    // Insert some key-value pairs
+    insert(hashTable, 5, 100);
+    insert(hashTable, 10, 200);
+    insert(hashTable, 15, 300);
+    insert(hashTable, 20, 400);
+
+    // Print the hash table
+    printHashTable(hashTable);
+
+    // Search for a key
+    int searchResult = search(hashTable, 10);
+    if (searchResult != -1)
+        printf("Value for key 10: %d\n", searchResult);
+    else
+        printf("Key 10 not found\n");
+
+    // Remove a key
+    removeKey(hashTable, 15);
+
+    // Print the updated hash table
+    printHashTable(hashTable);
+
+    // Destroy the hash table
+    destroyHashTable(hashTable);
+
+    return 0;
+}
